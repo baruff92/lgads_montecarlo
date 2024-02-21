@@ -1,0 +1,333 @@
+#++++++++++++++++++++++++++++++++
+#	Dr. Baruffaldi Filippo		]
+#	January 2023				[
+#	Matterhorn detector			]
+#	Detector group			    [
+#   Paul Scherrer Institut      ]
+#++++++++++++++++++++++++++++++++
+
+#================================================================
+# 		V I S U A L I Z A T I O N			]
+#================================================================
+/vis/open OGL
+/vis/viewer/reset
+/vis/viewer/set/viewpointThetaPhi 90 0
+/vis/viewer/zoom 50
+#/vis/viewer/set/style surface
+/vis/viewer/set/edge
+/vis/geometry/set/forceAuxEdgeVisible
+/vis/drawVolume
+# /vis/scene/add/axes
+/vis/scene/endOfEventAction accumulate
+# /vis/viewer/update
+/gate/geometry/setMaterialDatabase GateMaterials.db
+/vis/scene/add/logo2D
+/tracking/storeTrajectory 1
+# /vis/filtering/trajectories/create/particleFilter			# visualize only ONE particle
+# /vis/filtering/trajectories/particleFilter-0/add e-			# the said particle
+# /vis/filtering/trajectories/particleFilter-0/invert 		# visualize all BUT the said particle
+# #/gate/geometry/enable/AutoUpdate
+# /vis/modeling/trajectories/create/drawByParticleID			# define a color for a particle track
+# /vis/modeling/trajectories/drawByParticleID-0/set proton green	# the particle and the color
+# #/vis/modeling/trajectories/drawByParticleID-0/set gamma magenta	# the particle and the color
+
+#/vis/viewer/set/autoRefresh false
+		#W O R L D
+/gate/world/geometry/setXLength 2. m
+/gate/world/geometry/setYLength 2. m
+/gate/world/geometry/setZLength 2. m
+/gate/world/setMaterial Vacuum
+/gate/world/vis/forceWireframe
+/gate/world/daughters/name scanner
+/gate/world/daughters/insert box
+/gate/scanner/setMaterial Vacuum
+/gate/scanner/vis/forceWireframe
+/gate/scanner/geometry/setXLength 450. cm
+/gate/scanner/geometry/setYLength 450. cm
+/gate/scanner/geometry/setZLength 450. cm
+
+/gate/scanner/daughters/name scannerino
+/gate/scanner/daughters/insert box
+/gate/scannerino/setMaterial Vacuum
+/gate/scannerino/vis/forceWireframe
+/gate/scannerino/geometry/setXLength 400. cm
+/gate/scannerino/geometry/setYLength 400. cm
+/gate/scannerino/geometry/setZLength 400. cm
+
+#=================================================================
+#	D E T E C T O R S
+#=================================================================
+
+/gate/scannerino/daughters/name LGADs
+/gate/scannerino/daughters/insert box
+/gate/LGADs/setMaterial Silicon
+/gate/LGADs/geometry/setXLength 19 mm
+/gate/LGADs/geometry/setYLength 19 mm
+/gate/LGADs/geometry/setZLength 0.3 mm
+/gate/LGADs/placement/setRotationAxis 1 0 0
+/gate/LGADs/placement/setRotationAngle 0 deg
+/gate/LGADs/placement/setTranslation 0.0 0 -0.15 mm
+/gate/LGADs/vis/setColor white
+/gate/LGADs/vis/forceWireframe
+
+/gate/LGADs/daughters/name SiO2passivation
+/gate/LGADs/daughters/insert box
+/gate/SiO2passivation/setMaterial SiO2
+/gate/SiO2passivation/geometry/setXLength 19 mm
+/gate/SiO2passivation/geometry/setYLength 19 mm
+/gate/SiO2passivation/geometry/setZLength 35 nm
+/gate/SiO2passivation/placement/setRotationAxis 1 0 0
+/gate/SiO2passivation/placement/setRotationAngle 0 deg
+#0.15mm -35nm/2
+/gate/SiO2passivation/placement/setTranslation 0.0 0 149982.5 nm 
+/gate/SiO2passivation/vis/setColor yellow
+/gate/SiO2passivation/vis/forceWireframe
+
+/gate/LGADs/daughters/name SieN4passivation
+/gate/LGADs/daughters/insert box
+/gate/SieN4passivation/setMaterial Si3N4
+/gate/SieN4passivation/geometry/setXLength 19 mm
+/gate/SieN4passivation/geometry/setYLength 19 mm
+/gate/SieN4passivation/geometry/setZLength 35 nm
+/gate/SieN4passivation/placement/setRotationAxis 1 0 0
+/gate/SieN4passivation/placement/setRotationAngle 0 deg
+#0.15mm -35nm/2 -35nm
+/gate/SieN4passivation/placement/setTranslation 0.0 0 149947.5 nm
+/gate/SieN4passivation/vis/setColor cyan
+/gate/SieN4passivation/vis/forceWireframe
+
+#		P V T 		P L A N E S
+# /gate/calorimeter_plane_container/daughters/name calorimeter_plane_x
+# /gate/calorimeter_plane_container/daughsters/insert box
+# /gate/calorimeter_plane_x/setMaterial Scinti-C9H10
+# /gate/calorimeter_plane_x/geometry/setXLength 20. cm
+# /gate/calorimeter_plane_x/geometry/setYLength 1. cm
+# /gate/calorimeter_plane_x/geometry/setZLength 5 mm
+# /gate/calorimeter_plane_x/placement/setTranslation 0.0 0.0 0.0 cm
+# /gate/calorimeter_plane_x/vis/setColor blue
+# /gate/calorimeter_plane_x/vis/forceWireframe
+
+#		REPEATER of PVT Planes
+# /gate/calorimeter_plane_x/repeaters/insert cubicArray
+# /gate/calorimeter_plane_x/cubicArray/setRepeatNumberX 1
+# /gate/calorimeter_plane_x/cubicArray/setRepeatNumberY 8
+# /gate/calorimeter_plane_x/cubicArray/setRepeatNumberZ 1 # 60
+# /gate/calorimeter_plane_x/cubicArray/setRepeatVector 1 1. 1 cm  #-0.51
+
+# #		REPEATER of PVT Planes
+# /gate/calorimeter_plane_container/repeaters/insert cubicArray
+# /gate/calorimeter_plane_container/cubicArray/setRepeatNumberX 1
+# /gate/calorimeter_plane_container/cubicArray/setRepeatNumberY 1
+# /gate/calorimeter_plane_container/cubicArray/setRepeatNumberZ 60 # 60
+# /gate/calorimeter_plane_container/cubicArray/setRepeatVector 1 1. -7.1 mm  #-0.51
+
+#=================================================================
+# 			A C T O R
+#=================================================================
+
+
+#============================================================
+#   			A T T A C H
+#============================================================
+##/gate/systems/scanner/level1/attach scannerino
+##/gate/systems/scanner/level2/attach scintill_1
+#/gate/systems/scanner/level3/attach head
+#/gate/systems/scanner/level2/attach monolitic_silicon_down
+#/gate/systems/scanner/level2/attach monolitic_silicon_up
+# /gate/systems/scanner/level2/attach calorimeter_plane_container
+# /gate/systems/scanner/level3/attach calorimeter_plane_x
+# /gate/systems/scanner/level4/attach anode
+#/gate/systems/scanner/level3/attach SiO2passivation
+#/gate/systems/scanner/level3/attach SieN4passivation
+/gate/systems/scanner/level2/attach LGADs
+
+##/gate/scannerino/attachCrystalSD
+##/gate/scintill_1/attachCrystalSD
+# /gate/anode/attachCrystalSD
+#/gate/monolitic_silicon_down/attachCrystalSD
+#/gate/monolitic_silicon_up/attachCrystalSD
+# /gate/calorimeter_plane_container/attachCrystalSD
+# /gate/calorimeter_plane_x/attachCrystalSD
+#/gate/SieN4passivation/attachCrystalSD
+#/gate/SiO2passivation/attachCrystalSD
+/gate/LGADs/attachCrystalSD
+
+#/geometry/test/run
+
+#=============================================================
+# 		P H Y S I C S
+#=============================================================
+#/control/execute                        ./macro/physicslist_HAD_std.mac
+/gate/physics/addPhysicsList QGSP_BIC_EMZ
+#/gate/physics/addPhysicsList empenelope
+# /gate/physics/addPhysicsList LBE
+#/gate/physics/addProcess Scintillation neutron
+#/gate/physics/addProcess Scintillation proton
+#/gate/physics/addProcess Scintillation gamma
+#/gate/physics/removeProcess RadioactiveDecay
+# /gate/physics/addProcess Bremsstrahlung e-
+# /gate/physics/processes/Bremsstrahlung/setModel PenelopeModel e-
+# /gate/physics/processes/Bremsstrahlung/activateSplitting e- 100
+#/gate/physics/Gamma/SetCutInRegion anode 0.001 mm
+# /gate/physics/process/em/deexcitationIgnoreCut true
+# /gate/physics/SetMaxStepSizeInRegion anode .001 mm
+# /gate/physics/process/em/pixe false
+# /gate/physics/ActivateStepLimiter e-
+
+/gate/run/initialize
+/gate/physics/displayCuts
+
+
+#========================================================
+#	S O U R C E
+#========================================================
+
+/gate/source/addSource twogamma gps
+#/gate/source/twogamma/setActivity 5. becquerel
+#/gate/source/twogamma/setType PencilBeam
+# Position
+/gate/source/twogamma/gps/centre 0.0 0.0 10.0 cm
+# particle
+/gate/source/twogamma/gps/particle gamma
+#/gate/source/twogamma/gps/polarization           1 0 0
+/gate/source/twogamma/gps/energytype Mono
+/gate/source/twogamma/gps/monoenergy 0.95 keV
+/gate/source/twogamma/setActivity 1000. Bq
+# TYPE= Volume or Surface
+/gate/source/twogamma/gps/type Volume
+# SHAPE= examples Sphere or Cylinder
+/gate/source/twogamma/gps/shape Cylinder
+/gate/source/twogamma/gps/radius 0.   cm
+/gate/source/twogamma/gps/halfz 0. cm
+# Set the angular distribution of emission
+/gate/source/twogamma/gps/angtype iso
+
+/gate/source/twogamma/gps/mintheta 0. deg
+/gate/source/twogamma/gps/maxtheta 0. deg
+/gate/source/twogamma/gps/minphi 0. deg
+/gate/source/twogamma/gps/maxphi 0. deg
+
+#===================================================================
+#       		O U T P U T ( O P T I C A L )
+#===================================================================
+
+#/gate/digitizer/Singles/timeResolution/setTimeResolution 1000. ns
+
+#				 ASCII
+/gate/output/ascii/enable
+/gate/output/ascii/setFileName data/no
+/gate/output/ascii/setOutFileHitsFlag 0
+/gate/output/ascii/setOutFileSinglesFlag 0
+
+
+# #				 ROOT
+/gate/output/root/enable
+/gate/output/root/setFileName data/LGADs_absorption_950eV
+/gate/output/root/setRootHitFlag            1
+/gate/output/root/setRootSinglesFlag        0
+# /gate/output/root/setRootOpticalFlag 1
+
+# /gate/digitizerMgr/name Singles
+# #/gate/digitizerMgr/chooseSD LGADs
+# /gate/digitizerMgr/chooseSD SiO2passivation
+# /gate/digitizerMgr/chooseSD SieN4passivation
+# /gate/digitizerMgr/insert SinglesDigitizer
+# #/gate/digitizerMgr/LGADs/SinglesDigitizer/Singles/insert adder
+# /gate/digitizerMgr/SiO2passivation/SinglesDigitizer/Singles/insert adder
+# /gate/digitizerMgr/SieN4passivation/SinglesDigitizer/Singles/insert adder
+# #/gate/digitizerMgr/LGADs/SinglesDigitizer/Singles/adder/positionPolicy energyWeightedCentroid
+
+# #/gate/digitizerMgr/LGADs/SinglesDigitizer/Singles/insert readout
+# /gate/digitizerMgr/SiO2passivation/SinglesDigitizer/Singles/insert readout
+# /gate/digitizerMgr/SieN4passivation/SinglesDigitizer/Singles/insert readout
+# /gate/digitizerMgr/LGADs/SinglesDigitizer/Singles/readout/setDepth 2
+
+#/gate/output/analysis/disable
+#/gate/output/fastanalysis/enable
+#/gate/digitizer/Singles/insert opticaladder
+
+# /gate/digitizer/Singles/insert adder
+# /gate/digitizer/Singles/insert readout
+#/gate/digitizer/Singles/readout/setPolicy TakeEnergyWinner
+# /gate/digitizer/Singles/readout/setDepth 2
+
+#/gate/digitizer/Singles/insert crystalblurring
+#/gate/digitizer/Singles/crystalblurring/setCrystalResolutionMin 0.15
+#/gate/digitizer/Singles/crystalblurring/setCrystalResolutionMax 0.35
+#/gate/digitizer/Singles/crystalblurring/setCrystalQE 0.5
+#/gate/digitizer/Singles/crystalblurring/setCrystalEnergyOfReference 511. keV
+
+##                              QUANTUM EFFICIENCY
+#/gate/digitizer/Singles/insert quantumEfficiency
+#/gate/digitizer/Singles/quantumEfficiency/chooseQEVolume scintill_1
+#/gate/digitizer/Singles/quantumEfficiency/setUniqueQE .3
+
+##                              TRANSFER EFFICIENCY
+#/gate/digitizer/Singles/insert transferEfficiency
+#/gate/digitizer/Singles/transferEfficiency/chooseNewVolume scintill_1
+#/gate/digitizer/Singles/transferEfficiency/scintill_1/setTECoef 0.28
+
+##                              LIGHT OUTPUT
+#/gate/digitizer/Singles/insert lightYield
+#/gate/digitizer/Singles/lightYield/chooseNewVolume scintill_1
+#/gate/digitizer/Singles/lightYield/scintill_1/setLightOutput 11136.
+
+##                             INTRINSIC RESOLUTION
+#/gate/digitizer/Singles/insert intrinsicResolutionBlurring
+#/gate/digitizer/Singles/intrinsicResolutionBlurring/chooseNewVolume scintill_1
+#/gate/digitizer/Singles/intrinsicResolutionBlurring/scintill_1/setIntrinsicResolution .01
+#/gate/digitizer/Singles/intrinsicResolutionBlurring/scintill_1/setEnergyOfReference 511. keV
+
+#			 NOISE
+#/gate/distributions/name energy_distrib
+#/gate/distributions/insert Gaussian
+#/gate/distributions/energy_distrib/setMean 1. MeV
+#/gate/distributions/energy_distrib/setSigma 500. keV
+#/gate/distributions/name dt_distrib
+#/gate/distributions/insert Exponential
+#/gate/distributions/dt_distrib/setLambda 757. mus
+#/gate/digitizer/Singles/insert noise
+#/gate/digitizer/Singles/noise/setDeltaTDistribution dt_distrib
+#/gate/digitizer/Singles/noise/setEnergyDistribution energy_distrib
+#
+#				 CALIBRATION
+#/gate/digitizer/Singles/insert calibration
+
+# 				 TEMPORAL RESOLUTION
+#/gate/digitizer/Singles/insert timeResolution
+
+#=====================================================
+#  		 R A N D O M
+#=====================================================
+
+# Choose between: JamesRandom Ranlux64 MersenneTwister
+/gate/random/setEngineName MersenneTwister
+#/gate/random/setEngineSeed default
+/gate/random/setEngineSeed auto
+#/gate/random/setEngineSeed 123456789
+/gate/random/verbose 1
+
+#=================================================================
+#		I N I A L I Z A T I O N
+#=================================================================
+
+
+# /gate/application/setTimeSlice 1.0 s
+# /gate/application/setTimeStart 0. s
+# /gate/application/setTimeStop  2.0 s #8. s
+
+/gate/application/setTotalNumberOfPrimaries 100000
+/gate/application/start
+
+#===============================================================
+# 		S T A R T
+#===============================================================
+# /gate/output/allowNoOutput
+# #/gate/source/twogamma/visualize 5000 red 2
+/vis/ogl/set/displayListLimit 1000000
+/vis/scene/endOfEventAction accumulate 1000
+/vis/scene/add/trajectories  #smooth
+
+# /gate/application/startDAQ
+# #/vis/viewer/set/autoRefresh
+# /vis/viewer/rebuild
