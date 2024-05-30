@@ -4,6 +4,7 @@ import numpy as np
 
 #matplotlib.use('TkAgg') 
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from scipy.integrate import dblquad
 from scipy.integrate import quad
 from scipy import optimize
@@ -12,7 +13,10 @@ from datetime import datetime
 import re
 import multiprocessing
 from itertools import repeat
-import multiprocessing
+from lmfit import Model,Parameters,Minimizer, report_fit
+from lmfit.models import *
+import copy
+from scipy.optimize import curve_fit
 
 W1 = {'e_gain': 1,
       'h_gain': 0.253,
@@ -20,7 +24,7 @@ W1 = {'e_gain': 1,
       'th_impl': 112,  # nm
       'depth_gl': 670,  # nm
       'depth_gl_err': 12,  # nm
-      'noise': 24 # e-  
+      'noise': 23 # e-  
       }
 
 W9 = {'e_gain': 1,
@@ -29,7 +33,7 @@ W9 = {'e_gain': 1,
       'th_impl': 107,  # nm
       'depth_gl': 299,  # nm 
       'depth_gl_err': 5,  # nm
-      'noise': 25 # e-  
+      'noise': 22.3 # e-  
       }
 
 W13 = {'e_gain': 1,
@@ -88,7 +92,7 @@ def lgads_mult():
 
     subW1.set(xlabel='Energy (eV)', ylabel='Counts', title='W1')
     subW9.set(xlabel='Energy (eV)', ylabel='Counts', title='W9')
-    subW13.set(xlabel='Energy (eV)', ylabel='Counts', title='W13')       
+#    subW13.set(xlabel='Energy (eV)', ylabel='Counts', title='W13')       
 
     figW9comp, subW9comp = plt.subplots() 
     subW9comp.set(xlabel='Energy (eV)', ylabel='Counts', title='W9')
@@ -98,7 +102,18 @@ def lgads_mult():
                     'data/W9_vrpre3500_E700eV.txt',
                     'data/W9_vrpre3700_E600eV.txt',
     ]
-    plot_c = [50,45,45,40]    
+    plot_c = [50,45,45,40]
+    
+    W1c = copy.deepcopy(W1)
+    W9c = copy.deepcopy(W9)
+    W1c['h_gain'] = np.random.normal(W1['h_gain'], 0*W1['h_gain_err'],1)[0]	
+    W9c['h_gain'] = np.random.normal(W9['h_gain'], 0*W9['h_gain_err'],1)[0]	
+    W1c['depth_gl'] = np.random.normal(W1['depth_gl'], 0*W1['depth_gl_err'],1)[0]	
+    W9c['depth_gl'] = np.random.normal(W9['depth_gl'], 0*W9['depth_gl_err'],1)[0]	
+          
+    print('W1:',W1c)  
+    print('W9:',W9c)  
+        
     for jj,fn in enumerate(files):
         energy_plot[jj] = int(re.search('_absorption_(.*)eV',fn).group(1))
         print('Photon Energy:', energy_plot[jj], 'eV')
@@ -107,34 +122,34 @@ def lgads_mult():
         if energy_plot[jj] %100 == 0:
             n,b,h = sub1.hist(posZ,500, label=str(energy_plot[jj])+'eV', histtype='step', )
         tot_photons = eventID[-1]+1
-        print('Total photons:', tot_photons)
+        #print('Total photons:', tot_photons)
         recorded_photons = len(eventID)
-        print('Recorded photons:', recorded_photons)
+        #print('Recorded photons:', recorded_photons)
         QE_plot[jj] = recorded_photons/tot_photons
-        print('QE:', QE_plot[jj])
+        #print('QE:', QE_plot[jj])
         th_passivation = np.min(posZ)
-        print('Passivation:', th_passivation)
+#        print('Passivation:', th_passivation)
         
-        QE_plotW1[jj] = np.count_nonzero(posZ > W1['depth_gl']-th_passivation)/recorded_photons
-        QE_plotW9[jj]= np.count_nonzero(posZ > W9['depth_gl']-th_passivation)/recorded_photons
-        QE_plotW13[jj]= np.count_nonzero(posZ > W13['depth_gl']-th_passivation)/recorded_photons
+        QE_plotW1[jj] = np.count_nonzero(posZ > W1c['depth_gl']-th_passivation)/recorded_photons
+        QE_plotW9[jj]= np.count_nonzero(posZ > W9c['depth_gl']-th_passivation)/recorded_photons
+#        QE_plotW13[jj]= np.count_nonzero(posZ > W13['depth_gl']-th_passivation)/recorded_photons
         
-        mult_event_W1 = [lgad_multiplication(x-th_passivation, e*1000, W1, 0*W1['noise']*3.6) for x,e in zip(posZ,edep)]
-        mult_event_W9 = [lgad_multiplication(x-th_passivation, e*1000, W9, 0*W9['noise']*3.6) for x,e in zip(posZ,edep)]
-        mult_event_W13 = [lgad_multiplication(x-th_passivation, e*1000, W13, 0*W13['noise']*3.6) 
-                                                        for x,e in zip(posZ,edep)]
+        mult_event_W1 = [lgad_multiplication(x-th_passivation, e*1000, W1c, 0*W1c['noise']*3.6) for x,e in zip(posZ,edep)]
+        mult_event_W9 = [lgad_multiplication(x-th_passivation, e*1000, W9c, 0*W9c['noise']*3.6) for x,e in zip(posZ,edep)]
+#        mult_event_W13 = [lgad_multiplication(x-th_passivation, e*1000, W13, 0*W13['noise']*3.6) 
+#                                                        for x,e in zip(posZ,edep)]
 
         foutw1 = open('data/mult_spectr_W1_E'+f'{energy_plot[jj]:0.0f}'+'eV.txt','w')
         for el in mult_event_W1: print(el, file=foutw1)
         foutw9 = open('data/mult_spectr_W9_E'+f'{energy_plot[jj]:0.0f}'+'eV.txt','w')
         for el in mult_event_W9: print(el, file=foutw9)
-        foutw13 = open('data/mult_spectr_W13_E'+f'{energy_plot[jj]:0.0f}'+'eV.txt','w')
-        for el in mult_event_W13: print(el, file=foutw13)
+#        foutw13 = open('data/mult_spectr_W13_E'+f'{energy_plot[jj]:0.0f}'+'eV.txt','w')
+#        for el in mult_event_W13: print(el, file=foutw13)
         
         if energy_plot[jj] %100 == 0:
             nm,bm,hm = subW9.hist(mult_event_W9,200, label=str(energy_plot[jj])+'eV', histtype='step', )
             nm,bm,hm = subW1.hist(mult_event_W1,200, label=str(energy_plot[jj])+'eV', histtype='step', )
-            nm,bm,hm = subW13.hist(mult_event_W13,200, label=str(energy_plot[jj])+'eV', histtype='step', )
+#            nm,bm,hm = subW13.hist(mult_event_W13,200, label=str(energy_plot[jj])+'eV', histtype='step', )
 
             if energy_plot[jj]  > 560:
                 nm,bm,hm = subW9comp.hist(np.random.normal(mult_event_W9, W9['noise']*3.6),200, label=str(energy_plot[jj])+'eV', histtype='step', )
@@ -146,9 +161,9 @@ def lgads_mult():
                         subW9comp.plot(data[ic:,0],data[ic:,1]*norm, '--', label=str(energy_plot[jj])+'eV data')
 
     xplot = np.arange(0,100000,10)
-    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W1) for x in xplot], label='W1')
-    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W9) for x in xplot], label='W9')
-    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W13) for x in xplot], label='W13')
+    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W1c) for x in xplot], label='W1')
+    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W9c) for x in xplot], label='W9')
+#    sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 1000, W13) for x in xplot], label='W13')
     sub1.legend(frameon=False)
     sub1.plot([0,0, 275000,275000],[0,100000,100000,0], color='orange')
     sub1.set(xlabel='Depth (nm)', ylabel='Counts', ylim=[0,3000],xlim=[-1000,20000])
@@ -158,7 +173,7 @@ def lgads_mult():
     sub2.plot(energy_plot,QE_plot, marker= '.',label='QE')    
     sub2.plot(energy_plot,QE_plotW1, marker= '.',label='QE W1')    
     sub2.plot(energy_plot,QE_plotW9, marker= '.',label='QE W9')    
-    sub2.plot(energy_plot,QE_plotW13, marker= '.',label='QE W13')    
+#    sub2.plot(energy_plot,QE_plotW13, marker= '.',label='QE W13')    
 
     sub2.legend(frameon=False)
     sub2.grid()
@@ -167,22 +182,22 @@ def lgads_mult():
 
     subW1.legend(frameon=False)
     subW9.legend(frameon=False)
-    subW13.legend(frameon=False)
+#    subW13.legend(frameon=False)
 
     figW1.show()
     figW9.show()
-    figW13.show()
+#    figW13.show()
     subW9comp.legend()
     figW9comp.show()
     
     print('Multiplied W1', QE_plotW1)
     print('Multiplied W9', QE_plotW9)
-    print('Multiplied W13', QE_plotW13)
+#    print('Multiplied W13', QE_plotW13)
 
 def charge_sharing_spectrum():
     energies = np.arange(200,901,50)
-    wafers = ['W9']#['W1', 'W9', 'W13','W17']
-    w_dics = [W9] #[W1,W9,W13,W17]
+    wafers = ['W1','W9']#, 'W9', 'W13','W17']
+    w_dics = [W1,W9]#,W9,W13,W17]
     tot_photons = 1e5 # number of simulated photons  
     QE=np.zeros((len(wafers),len(energies)))  
     QE_mult=np.zeros((len(wafers),len(energies)))  
@@ -193,6 +208,9 @@ def charge_sharing_spectrum():
     pp = 75 # um
 
     chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection4.68um_pp75um.txt')
+#    chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection6.00um_pp75um.txt')
+#    chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection7.50um_pp75um.txt')
+
     print(np.shape(chcloud))
 
     im = sub1.imshow(chcloud, extent=(0,pp,0,pp))
@@ -201,17 +219,33 @@ def charge_sharing_spectrum():
     fig1.colorbar(im)
     fig1.show()
     
-    comparison_files= ['data/W9_vrpre3500_E900eV.txt',
+    comparison_files= [
+#                 'data/W1_vrpre3400_E900eV.txt',
+#                 'data/W1_vrpre3400_E800eV.txt',
+#                'data/W17_vrpre2800_E900eV.txt',
+#                'data/W1_vrpre3400_E800eV.txt',
+#                 'data/W1_vrpre3400_E700eV.txt',
+#                 'data/W1_vrpre3400_E600eV.txt',
+#                'data/W1_vrpre3400_E600eV.txt',
+                'data/W9_vrpre3500_E900eV.txt',
                 'data/W9_vrpre3500_E800eV.txt',
                 'data/W9_vrpre3500_E700eV.txt',
                 'data/W9_vrpre3700_E600eV.txt',
     ]
 
+
     plot_c = [50,45,45,40]
+    plot_c = [46,45,42,40] #w9
+#    plot_c = [50,48,47,42] #w1
+
     fig5, sub5 = plt.subplots()
-    sub5.set(xlabel='Energy (eV)', ylabel='Counts', title='Comparison')           
+    sub5.set(xlabel='Energy (eV)', ylabel='Counts')           
+
+    fig7, sub7 = plt.subplots()
+    sub7.set(xlabel='Energy (eV)', ylabel='Counts', title='Comparison W1-W9')           
     
     for iw,(w,ws) in enumerate(zip(wafers,w_dics)):
+        print(w,ws)
         fig2, sub2 = plt.subplots()
         sub2.set(xlabel='Energy (eV)', ylabel='Counts', title=w+' No charge-sharing')           
         fig3, sub3 = plt.subplots()
@@ -246,14 +280,22 @@ def charge_sharing_spectrum():
             if e == 900:    
                 nm,bm,hm = sub4.hist(data_noise_nosh,200, label=str(e)+'eV - NO charge sharing', histtype='step')
                 nm,bm,hm = sub4.hist(data_noise,200, label=str(e)+'eV - with charge sharing', histtype='step')
+                nm,bm,hm = sub7.hist(data_noise,200, label=str(e)+'eV - '+w, histtype='step')
+               
 
             if w=='W9':
                 for comp, ic in zip(comparison_files,plot_c):
-                    if 'E'+str(e).replace('.0','')+'eV' in comp:
+                    if 'E'+str(e).replace('.0','')+'eV' in comp and w in comp:
                         data = np.loadtxt(comp)
-                        norm = np.max(nm)/np.max(data[:,1])
-                        sub5.plot(data[ic:,0],data[ic:,1]*norm, '--', label=str(e)+'eV data')
+                        norm = np.max(nm[100:])/np.max(data[:,1])
+                        sub5.plot(data[ic:,0],data[ic:,1]*norm, '-', label=str(e)+'eV data')
                         sub5.hist(data_noise,200, label=str(e)+'eV sim', histtype='step')
+
+    for comp, ic in zip(comparison_files,plot_c):
+        data = np.loadtxt(comp)
+        norm = np.max(nm)/np.max(data[:,1])
+        sub7.plot(data[ic:,0],data[ic:,1]*norm, '--', label=str(e)+'eV data')
+
 
         sub2.legend()    
         fig2.show()
@@ -263,6 +305,9 @@ def charge_sharing_spectrum():
         fig4.show()
         sub5.legend()    
         fig5.show()
+        sub7.legend()    
+        fig7.show()
+
         
     fig6, sub6 = plt.subplots()   
     sub6.set(xlabel='Energy (eV)', ylabel='Efficiency', title='Efficiency')            
@@ -270,14 +315,19 @@ def charge_sharing_spectrum():
         sub6.plot(energies,QE[iw,:], marker= '.',label='QE - '+w)  
         sub6.plot(energies,QE_mult[iw,:], marker= '.',label='QE mult - '+w)  
         
-    print(QE)        
-    print(QE_mult)
+    #print(QE)        
+    #print(QE_mult)
 
     sub6.legend()    
     fig6.show()
+
+    return QE_mult
        
 def calculate_charge_collection():
-    sigma_cloud = 4.68 #um
+#    sigma_cloud = 4.68 #um
+#    sigma_cloud = 6 #um
+#    sigma_cloud = 6.5 #um
+    sigma_cloud = 7.5 #um
     pp = 75 # um
     Evgridx = np.arange(0,pp+.1,1)
     Evgridy = np.arange(0,pp+.1,1)    
@@ -287,10 +337,10 @@ def calculate_charge_collection():
     chcloud = integral_gauss2d_v(X,Y,sigma_cloud,1,pp)
 
     fig2, sub2 = plt.subplots() # weighting field    
-    im = sub2.imshow(chcloud, extent=(0,pp,0,pp))
+    im = sub2.imshow(chcloud, extent=(0,pp,0,pp), vmin=0.25, vmax=1 ,cmap='inferno')
     sub2.plot([0,pp,pp,0,0],[0,0,pp,pp,0],'-', color='black')
-    sub2.set(xlabel='x(um)',ylabel='y(um)', title='Charge collection')
-    fig2.colorbar(im)
+    sub2.set(xlabel='x ($\\mu$m)',ylabel='y ($\\mu$m)')
+    fig2.colorbar(im, label='Collected charge fraction')
     fig2.show()
 
     fout = open('data/charge_collection'+f'{sigma_cloud:0.2f}'+'um_pp'+f'{pp:0.0f}'+'um'+'.txt','w')
@@ -312,7 +362,7 @@ def get_charge_collected(x,y,e,coll_map,pp):
 def get_simulated_data(txt_fname):
     print('Getting data from:', txt_fname)
     data = np.loadtxt(txt_fname)
-    print(np.shape(data))
+    #print(np.shape(data))
     return data[:,0], data[:,1], data[:,2]
 
 def write_simulated_data_infile(root_fname):
@@ -435,42 +485,41 @@ def plot_SNR():
 #	sub1.plot(snr_W13[:,0],snr_W13[:,1], marker = 'o', linestyle = 'none', label='Ultra-shallow' )
 #	sub1.plot(np.arange(0,2000,100), par_W13[0]*np.arange(0,2000,100)+par_W13[1], '--')
 	
-	#en, measuredQE, signal>5sigma, column0*column1, photons absorbed after gain layer
-
+	#en, measuredQE, err signal>5sigma, err, tot_eff, err, photons absorbed after gain layer
 	eff_W1 = np.array([ 
-            [200,0.432448019,0.0000,0.0000,0.0002],
-            [250,0.562035332,0.0001,0.0000,0.0032],
-            [300,0.61335369,0.0010,0.0006,0.0224],
-            [350,0.687525902,0.0072,0.0050,0.0686],
-            [400,0.723115521,0.0328,0.0237,0.1419],
-            [450,0.760093157,0.0956,0.0726,0.2297],
-            [500,0.80063331,0.1948,0.1560,0.3221],
-            [550,0.731947368,0.3095,0.2266,0.4054],
-            [600,0.784586186,0.4240,0.3327,0.4854],
-            [650,0.820386717,0.5254,0.4310,0.5573],
-            [700,0.855498485,0.6069,0.5192,0.6120],
-            [750,0.864894685,0.6764,0.5850,0.6652],
-            [800,0.879920641,0.7326,0.6446,0.7070],
-            [850,0.894954498,0.7811,0.6990,0.7432],
-            [900,0.916747858,0.8216,0.7532,0.7740],
+	[200,0.4324480,0.0161546,0.0000066,0.0000128,0.0000029,0.0000055],
+	[250,0.5620353,0.0111879,0.0000571,0.0000328,0.0000321,0.0000184],
+	[300,0.6133537,0.0100897,0.0008740,0.0001202,0.0005360,0.0000743],
+	[350,0.6875259,0.0351471,0.0072646,0.0004225,0.0049946,0.0003868],
+	[400,0.7231155,0.0150489,0.0330144,0.0012195,0.0238732,0.0010121],
+	[450,0.7600932,0.0117162,0.0948216,0.0024360,0.0720732,0.0021593],
+	[500,0.8006333,0.0134015,0.1943153,0.0036701,0.1555753,0.0039263],
+	[550,0.7319474,0.0121542,0.3095837,0.0044671,0.2265990,0.0049849],
+	[600,0.7845862,0.0130894,0.4249784,0.0044976,0.3334322,0.0065876],
+	[650,0.8203867,0.0137586,0.5255493,0.0041211,0.4311537,0.0079822],
+	[700,0.8554985,0.0128204,0.6063890,0.0036887,0.5187648,0.0083902],
+	[750,0.8648947,0.0131384,0.6777788,0.0030917,0.5862073,0.0092977],
+	[800,0.8799206,0.0134775,0.7334904,0.0027396,0.6454133,0.0101753],
+	[850,0.8949545,0.0148728,0.7805066,0.0023967,0.6985179,0.0118048],
+	[900,0.9167479,0.0151788,0.8207330,0.0018965,0.7524052,0.0125785],
 			])
 	
 	eff_W9 = np.array([
-            [200,0.489865363,0.0000,0.0000,0.0701],
-            [250,0.588656204,0.0005,0.0003,0.1795],
-            [300,0.655403506,0.0051,0.0034,0.3188],
-            [350,0.700047389,0.0249,0.0174,0.4468],
-            [400,0.743308963,0.0763,0.0567,0.5541],
-            [450,0.72288984,0.1787,0.1292,0.6404],
-            [500,0.7747794,0.3128,0.2423,0.7112],
-            [550,0.695852713,0.4485,0.311,0.7651],
-            [600,0.746760343,0.5680,0.4241,0.8058],
-            [650,0.779146386,0.6560,0.5111,0.8383],
-            [700,0.807935326,0.7220,0.5833,0.8634],
-            [750,0.821818386,0.7765,0.6382,0.8853],
-            [800,0.848448683,0.8181,0.6941,0.9013],
-            [850,0.847307341,0.8526,0.7224,0.9132],
-            [900,0.858738425,0.8815,0.7570,0.9258],
+[200,0.489865363,0.011013155,4.4951059348284E-05,3.59046467721366E-05,2.20199670048817E-05,1.75954084477984E-05],
+[250,0.588656204,0.012524678,0.00060453367624,0.000109502009654	,0.000355862499046,6.49022069233305E-05	],
+[300,0.655403506,0.010526522,0.005140703840945,0.000303214396493,0.003369235320663,0.000205963652034],
+[350,0.700047389,0.035989005,0.024731934271546,0.000676349139337,0.017313526011716,0.001008175714249],
+[400,0.743308963,0.015994755,0.078165820844212,0.001285225836222,0.058101355233755,0.001573449720664],
+[450,0.72288984,0.010942573,0.177213070303983,0.002088177764691,0.128105528037955,0.002457443110394],
+[500,0.7747794,0.012306435,0.311416398391522,0.002543349177612,0.241279010295945,0.004309349473852],
+[550,0.695852713,0.010043065,0.449057249214052,0.002657826399318,0.312477705157915,0.004874400982644],
+[600,0.746760343,0.01182466,0.567102197917095,0.002306961669087,0.423489431832624,0.006923545875507],
+[650,0.779146386,0.012495118,0.655961225149793,0.002250445661574,0.511089817931594,0.008381768918433],
+[700,0.807935326,0.013206563,0.723109328761072,0.001935629639503,0.584225571266218,0.009676990100162],
+[750,0.821818386,0.012980527,0.777118142276171,0.001586375580213,0.638649977416721,0.010171301118449],
+[800,0.848448683,0.012916812,0.818192518609862,0.001412663907154,0.694194364854991,0.010636187217132],
+[850,0.847307341,0.013584308,0.851345370693691,0.001158786454194,0.721351182315131,0.011606541720937],
+[900,0.858738425,0.013589013,0.881062503719224,0.001056870584627,0.756602226770403,0.012007119144909],
 			])
 
 	QEgeant = np.array([[200,0.4036],
@@ -491,21 +540,74 @@ def plot_SNR():
 			])
 
 
-	sub1[1].plot(QE[7:,0],QE[7:,1],':',color='gray', label='QE')
-	sub1[1].plot(eff_W9[7:,0],eff_W9[7:,2],color='black', label='Shallow')
-	sub1[1].plot(eff_W1[7:,0],eff_W1[7:,2],color='red', label='Standard')
-	sub1[0].tick_params(bottom=True, top=False, left=True, right=True, direction="in")
+	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,1],yerr=eff_W1[7:,2],marker = '.',mfc='none', color='grey', linestyle = ':',capsize=3, capthick=1, label='QE')
+	sub1[1].errorbar(eff_W9[7:,0],eff_W9[7:,5],yerr=eff_W9[7:,6],marker = 'o',mfc='none', color='black', linestyle = '--',capsize=3, capthick=1, label='Shallow')
+	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,5],yerr=eff_W1[7:,6],marker = 's',mfc='none', color='red', linestyle = '--',capsize=3, capthick=1, label='Standard')
+	sub1[0].tick_params(bottom=True, top=True, left=True, right=True, direction="in")
 	sub1[1].tick_params(bottom=True, top=False, left=True, right=True, direction="in", labelleft=False)
 	
 	ax1 = sub1[1].twinx()
-	sub1[1].set_ylim([0.6,1])
-	ax1.set_ylim([0.6,1])
+	sub1[1].set_ylim([0.1,1])
+	ax1.set_ylim([0.1,1])
 	ax1.tick_params(direction="in")
 	ax1.set(ylabel='Efficiency')
 
 	sub1[0].legend(frameon=False)
 	sub1[1].legend(frameon=False, loc='lower right')
 #	sub1.set_xlim([450,1000])
+	fig1.show()
+
+def noise_vs_gain(x, g0,n0):
+	return g0/x*n0
+
+def plot_noise_vs_gain():
+	noise = np.array([
+['W0', 0.238,	0.019,	80.495, 4.219, 'Conventional Sensor (G=1)', 'gray','.'],
+['W13',	0.562,	0.160,	33.686, 6.971, 'ultra-Shallow iLGAD (G=2.4)' , 'green','v'],
+['W9', 1.165,	0.120,	22.987, 1.415, 'Shallow iLGAD (G=4.9)','black', 's'],
+['W1', 1.505,	0.121,	23.032, 1.594, 'Standard iLGAD (G=6.3)', 'red', 'o'],
+['W17',	1.354,	0.070,	23.957,1.816, 'Standard iLGAD (G=11)', 'blue','x']]	
+	)
+	
+	fig2, sub2 = plt.subplots() 
+	sub2.set_xlabel('Calibration Gain (mV/eV)')
+	sub2.set_ylabel('Noise (e-)')
+	
+	for i, x in enumerate(noise):
+		sub2.errorbar(float(x[1]),float(x[3]), xerr=float(x[2]), yerr=float(x[4]), 
+	marker = x[7], mfc='none', color=x[6], linestyle = 'none', capsize=3, capthick=1, label=x[5])
+
+	param, cov = curve_fit(noise_vs_gain,noise[:,1].astype(float),noise[:,3].astype(float),
+		p0=[float(noise[0,1]),float(noise[0,3])], sigma=noise[:,4].astype(float), absolute_sigma=True)
+
+	xp = np.arange(0.01,2,0.05)
+	sub2.plot(xp, noise_vs_gain(xp, param[0],param[1]), '--', color='gray', label='fit') 
+	#sub2.plot(xp, noise_vs_gain(xp, 0.238,80.495), '--')
+
+	sub2.legend(frameon=False)	
+	sub2.set(xlim=[0,2], ylim=[0,100])
+	fig2.show()
+	
+	noisered = np.array([
+['W13', 2.362, 0.699, 2.550, 0.185, 'ultra-Shallow iLGAD (G=2.4)' , 'green','v'],
+['W9', 4.897, 0.636, 3.903, 0.185, 'Shallow iLGAD (G=4.9)','black', 's'],
+['W1', 6.325, 0.712, 3.823, 0.217, 'Standard iLGAD (G=6.3)', 'red', 'o'],
+['W17', 10.967, 0.823, 5.310, 0.399, 'Standard iLGAD (G=11)', 'blue','x']		
+	])
+	
+	fig1, sub1 = plt.subplots() 
+	sub1.set_xlabel('LGAD Gain')
+	sub1.set_ylabel('Noise reduction factor')
+
+	for i, x in enumerate(noisered):
+		sub1.errorbar(float(x[1]),float(x[3]), xerr=float(x[2]), yerr=float(x[4]), 
+	marker = x[7], mfc='none', color=x[6], linestyle = 'none', capsize=3, capthick=1, label=x[5])
+
+	xp = np.arange(0,20,0.1)	
+	sub1.plot(xp, xp, '--', color='gray', label='linear reduction')
+	
+	sub1.legend(frameon=False)	
+	sub1.set(xlim=[0,12], ylim=[0,6])
 	fig1.show()
 	
 def plot_noise_red():
@@ -576,9 +678,219 @@ def plot_noise_red():
 	sub2.set(xlim=[0,8], ylim=[0,100])
 	fig2.show()
     
+def calculate_efficiency_error():
+	iterations = 500
+	energies = np.arange(200,901,50)
+
+	efficiency = np.zeros((iterations,2,15))
+	for i in range(iterations):
+		print('Iteration:', i)
+		lgads_mult()
+		efficiency[i] = charge_sharing_spectrum()
+		plt.close('all')
+
+	fig1, sub1 = plt.subplots() 
+	fig2, sub2 = plt.subplots()
+	sub1.set(title='W1', xlabel='Energy (eV)', ylabel='Efficiency')
+	sub2.set(title='W9', xlabel='Energy (eV)', ylabel='Efficiency')
+	for i in range(iterations):
+		sub1.plot(energies,efficiency[i,0,:])	
+		sub2.plot(energies,efficiency[i,1,:])
+	fig1.show()	
+	fig2.show()	
+	
+	model_g = GaussianModel()
+
+	fig3, sub3 = plt.subplots() 
+	fig4, sub4 = plt.subplots()
+	sub3.set(title='W1', xlabel='Efficiency', ylabel='Counts')
+	sub4.set(title='W9', xlabel='Efficiency', ylabel='Counts')
+	for i,e in enumerate(energies):
+		print(e)
+		n1,b1,h1 = sub3.hist(efficiency[:,0,i],200, label=str(e)+'eV', histtype='step', )
+		params_g = model_g.make_params(center=b1[np.argmax(n1)], amplitude=np.amax(n1), sigma=np.std(efficiency[:,0,i])) 
+		result_g = model_g.fit(n1, params_g, x=(b1[1:] + b1[:-1])/2)
+		sub3.plot((b1[1:] + b1[:-1])/2, result_g.best_fit, '-')
+		print(result_g.params.valuesdict())
+		print('Average:',np.average(efficiency[:,0,i]))
+		print('std.dev',np.std(efficiency[:,0,i]))
+
+		n9,b9,h9 = sub4.hist(efficiency[:,1,i],200, label=str(e)+'eV', histtype='step', )
+		params_g = model_g.make_params(center=b9[np.argmax(n9)], amplitude=np.amax(n9), sigma=np.std(efficiency[:,1,i])) 
+		result_g = model_g.fit(n9, params_g, x=(b9[1:] + b9[:-1])/2)
+		sub4.plot((b9[1:] + b9[:-1])/2, result_g.best_fit, '-')
+		print(result_g.params.valuesdict())
+		print('Average:',np.average(efficiency[:,1,i]))
+		print('std.dev',np.std(efficiency[:,1,i]))
+		
+	fig1.show()	
+	fig2.show()	
+	fig3.show()	
+	fig4.show()
+	
+def exp(x,a,t):
+	return a*np.exp(-x*t)		
+
+def plot_multiplication_factor():
+	fig1, sub1 = plt.subplots() 
+	sub1.set( xlabel='Depth (nm)', ylabel='Effective Multiplication factor', ylim=[0,10])
+	xplot = np.arange(0,1500,10)
+	th_passivation = 75
+	sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 6.2, W1) for x in xplot], label='Standard', color='red')
+	sub1.plot(xplot, [lgad_multiplication(x-th_passivation, 4.9, W9) for x in xplot], label='Shallow', color='black')
+	
+	sub1.axvspan(0, 75, facecolor='gold', )
+	sub1.axvspan(75, 112+75, facecolor='lightsteelblue', )
+#	sub1.axvspan(670+75, 2000, facecolor='bisque', alpha=0.7)
+#	sub1.axvspan(299+75, 2000, facecolor='bisque', alpha=0.7)
+
+	t=sub1.text(75/2, 10, 'Passivation', fontsize=10, color='black',ha="center", va="top", rotation='vertical') #, fontweight = 'bold')
+	t1=sub1.text((112+75+75)/2, 10, '$n^+$-implant', fontsize=10, color='black',ha="center", va="top", rotation='vertical') #, 	#t.set_bbox(dict(facecolor='white', alpha=.9, linewidth=0))		
+#	p3 = patches.FancyArrowPatch((670, 3), (2000, 3),linewidth=2, arrowstyle='<|-|>', mutation_scale=10, ec='gray')
+#	sub1.add_patch(p3)
+
+	p2 = patches.FancyArrowPatch((112+75, 8), (670+75, 8),linewidth=1, arrowstyle='<|-|>', mutation_scale=10, color='black')
+	sub1.add_patch(p2)
+	sub1.plot( [112+75,112+75],[2.3, 8], '--', color='gray')
+	sub1.plot( [670+75,670+75],[6.4, 8], '--', color='gray')
+	t=sub1.text(466, 8.6, 'Standard\ngain layer', fontsize=10, color='red',ha="center", va="center",) #, fontweight = 'bold')
+
+	sub1.plot( [299+75,299+75],[5.1, 6], '--', color='gray')
+	p1 = patches.FancyArrowPatch((112+75, 6), (299+75, 6),linewidth=1, arrowstyle='<|-|>', mutation_scale=10, color='black')
+	sub1.add_patch(p1)
+	t=sub1.text(200, 6.6, 'shallow\ngain layer', fontsize=10, color='black',ha="left", va="center",) #, fontweight = 'bold')
+
+
+	fig2, sub2 = plt.subplots() 
+	sub2.set(xlabel='depth (nm)')	
+	fn='LGADs_absorption_500eV.txt'
+	energy = int(re.search('_absorption_(.*)eV',fn).group(1))
+	print('Photon Energy:', energy, 'eV')
+	eventID, posZ, edep = get_simulated_data('data/'+fn)
+	#print('Min hit position:',np.min(posZ), 'nm - Max:', np.max(posZ), 'nm')
+	n,b,h = sub2.hist(posZ,500, label=str(energy)+'eV', histtype='step', )
+	print(np.max(n))
+	
+	param, cov = curve_fit(exp, b[:-1],n, p0=[np.max(n),0.01])
+	print(param)
+	sub2.plot(xplot,exp(xplot, param[0],param[1]))
+
+	fn='LGADs_absorption_1000eV.txt'
+	energy = int(re.search('_absorption_(.*)eV',fn).group(1))
+	print('Photon Energy:', energy, 'eV')
+	eventID, posZ, edep = get_simulated_data('data/'+fn)
+	#print('Min hit position:',np.min(posZ), 'nm - Max:', np.max(posZ), 'nm')
+	n,b,h = sub2.hist(posZ,500, label=str(energy)+'eV', histtype='step', )
+	print(np.max(n))
+	
+	param1, cov1 = curve_fit(exp, b[:-1],n, p0=[np.max(n),0.001])
+	print(param1)
+	sub2.plot(xplot,exp(xplot, param1[0],param1[1]))
+
+
+	fig2.show()
+
+	ax1 = sub1.twinx()
+#	sub1[1].set_ylim([0.1,1])
+	ax1.set_ylim([0,2])
+	ax1.tick_params(direction="in")
+	sub1.tick_params(direction="in")
+	ax1.set(ylabel='Absorbed photons (AU)')
+	ax1.plot(xplot,[exp(x, 1,param1[1]) if x>0 else 0 for x in xplot], ':', label='Absorption of\n1000 eV photons')
+	ax1.plot(xplot,[exp(x, 1,param[1]) if x>0 else 0 for x in xplot], '--', label='Absorption of\n500 eV photons')
+	ax1.legend(frameon=False, loc='center right', bbox_to_anchor=(0.95, 0.15))
+	
+	sub1.legend(frameon=False)
+	fig1.show()
     
+def compare_geant_lbl():  
+    print('Compare the attenuation coefficient from LBL\nwith the Geant4 simulation')
+
+    fig1, sub1 = plt.subplots() 
+    sub1.set(xlabel='Energy (eV)',ylabel='Attenuation coefficient (1/nm)')	
+
+    fig2, sub2 = plt.subplots() 
+    sub2.set(xlabel='depth (nm)')	
+
+    geantfiles = ['LGADs_absorption_200eV.txt',
+    'LGADs_absorption_250eV.txt',
+    'LGADs_absorption_300eV.txt',
+    'LGADs_absorption_350eV.txt',
+    'LGADs_absorption_400eV.txt',
+    'LGADs_absorption_450eV.txt',
+    'LGADs_absorption_500eV.txt',
+    'LGADs_absorption_550eV.txt',
+    'LGADs_absorption_600eV.txt',
+    'LGADs_absorption_650eV.txt',
+    'LGADs_absorption_700eV.txt',
+    'LGADs_absorption_750eV.txt',
+    'LGADs_absorption_800eV.txt',
+    'LGADs_absorption_850eV.txt',
+    'LGADs_absorption_900eV.txt',]
+ 
+    xplot = np.arange(0,2000,10)
+    coefficients = np.zeros(len(geantfiles))
+    energies = np.zeros(len(geantfiles))
+
+   
+    for i,fn in enumerate(geantfiles):
+	    energy = int(re.search('_absorption_(.*)eV',fn).group(1))
+	    energies[i]= energy
+	    print('Photon Energy:', energy, 'eV')
+	    eventID, posZ, edep = get_simulated_data('data/'+fn)
+	    #print('Min hit position:',np.min(posZ), 'nm - Max:', np.max(posZ), 'nm')
+	    n,b,h = sub2.hist(posZ-75,500, label=str(energy)+'eV', histtype='step', )
+	    
+	    param, cov = curve_fit(exp, b[:-1],n, p0=[np.max(n),0.01])
+	    print(param)
+	    sub2.plot(xplot,exp(xplot, param[0],param[1]))
+	    coefficients[i] = param[1]
+
+    print(coefficients)
+    fig2.show()
+
+    nist = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/lbl_att_coeff.txt')
+    sub1.plot(energies,coefficients, 'o', label='Geant')
+    sub1.plot(nist[:,0],1/(nist[:,1]*1000), label='LBL')
+    sub1.set(xlim=(100,1000))
+
+    sub1.legend()
+    fig1.show()
+
+def calculate_efficiency():
     
+    #get the mu from lbl
+    fig1, sub1 = plt.subplots() 
+    sub1.set(xlabel='Energy (eV)',ylabel='Attenuation coefficient (1/nm)')	
+    mu_lbl = np.loadtxt('data/lbl_att_coeff.txt')
+    sub1.plot(mu_lbl[:,0],1/(mu_lbl[:,1]*1000), label='LBL')
+
+    # mu from Geant4
+    mu_geant = np.array([[200, 0.01680155],
+                         [250, 0.01081149],
+                         [300, 0.00718765],
+                         [350, 0.00502069],
+                         [400, 0.00372266], 
+                         [450, 0.00279584], 
+                         [500, 0.00215177], 
+                         [550, 0.0017018],  
+                         [600, 0.00136018], 
+                         [650, 0.00110544], 
+                         [700, 0.00092519], 
+                         [750, 0.0007662],
+                         [800, 0.00065365], 
+                         [850, 0.00056055], 
+                         [900, 0.00048302]])
+
+    sub1.plot(mu_geant[:,0],mu_geant[:,1], label='Geant4')
+    sub1.set(xlim=(100,1000))
+    sub1.legend()
+    fig1.show()
+
     
-    
+
+
+
+
     
 
