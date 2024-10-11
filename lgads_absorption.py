@@ -17,6 +17,10 @@ from lmfit import Model,Parameters,Minimizer, report_fit
 from lmfit.models import *
 import copy
 from scipy.optimize import curve_fit
+from matplotlib import rcParams
+rcParams['font.sans-serif'] = "Times"
+rcParams['font.family'] = "Arial"
+plt.rc('axes', unicode_minus=False)
 
 W1 = {'e_gain': 1,
       'h_gain': 0.253,
@@ -58,12 +62,12 @@ def lgads_mult():
     print('Calculations for Eiger paper')
 
     files = [
-    'LGADs_absorption_200eV.txt',
-    'LGADs_absorption_250eV.txt',
-    'LGADs_absorption_300eV.txt',
-    'LGADs_absorption_350eV.txt',
-    'LGADs_absorption_400eV.txt',
-    'LGADs_absorption_450eV.txt',
+    # 'LGADs_absorption_200eV.txt',
+    # 'LGADs_absorption_250eV.txt',
+    # 'LGADs_absorption_300eV.txt',
+    # 'LGADs_absorption_350eV.txt',
+    # 'LGADs_absorption_400eV.txt',
+    # 'LGADs_absorption_450eV.txt',
     'LGADs_absorption_500eV.txt',
     'LGADs_absorption_550eV.txt',
     'LGADs_absorption_600eV.txt',
@@ -195,21 +199,20 @@ def lgads_mult():
 #    print('Multiplied W13', QE_plotW13)
 
 def charge_sharing_spectrum():
-    energies = np.arange(200,901,50)
-    wafers = ['W1','W9']#, 'W9', 'W13','W17']
-    w_dics = [W1,W9]#,W9,W13,W17]
+    energies = np.arange(500,901,50)
+    wafers = ['W9']#, 'W1', 'W13','W17']
+    w_dics = [W9]#,W1,W13,W17]
     tot_photons = 1e5 # number of simulated photons  
     QE=np.zeros((len(wafers),len(energies)))  
     QE_mult=np.zeros((len(wafers),len(energies)))  
         
     fig1, sub1 = plt.subplots() # weighting field
-    
-    sigma_cloud = 4.68 #um
     pp = 75 # um
 
-    chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection4.68um_pp75um.txt')
-#    chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection6.00um_pp75um.txt')
-#    chcloud = np.loadtxt('/mnt/sls_det_storage/eiger_data/lgad/Filippo_analysis/lgads_sim/lgads_montecarlo/data/charge_collection7.50um_pp75um.txt')
+    # chcloud = np.loadtxt('data/charge_collection4.68um_pp75um.txt')
+    # chcloud = np.loadtxt('data/charge_collection6.00um_pp75um.txt')
+    chcloud = np.loadtxt('data/charge_collection6.00um_pp75um.txt')
+    cloud = '6.00'
 
     print(np.shape(chcloud))
 
@@ -220,17 +223,17 @@ def charge_sharing_spectrum():
     fig1.show()
     
     comparison_files= [
-#                 'data/W1_vrpre3400_E900eV.txt',
-#                 'data/W1_vrpre3400_E800eV.txt',
+                # 'data/W1_vrpre3400_E900eV.txt',
 #                'data/W17_vrpre2800_E900eV.txt',
-#                'data/W1_vrpre3400_E800eV.txt',
-#                 'data/W1_vrpre3400_E700eV.txt',
+               'data/W1_vrpre3400_E900eV.txt',
+                # 'data/W1_vrpre3400_E850eV.txt',
+                # 'data/W1_vrpre3400_E800eV.txt',
 #                 'data/W1_vrpre3400_E600eV.txt',
 #                'data/W1_vrpre3400_E600eV.txt',
-                'data/W9_vrpre3500_E900eV.txt',
-                'data/W9_vrpre3500_E800eV.txt',
-                'data/W9_vrpre3500_E700eV.txt',
-                'data/W9_vrpre3700_E600eV.txt',
+                # 'data/W9_vrpre3500_E800eV.txt',
+                # 'data/W9_vrpre3500_E850eV.txt',
+                # 'data/W9_vrpre3500_E700eV.txt',
+                # 'data/W9_vrpre3700_E600eV.txt',
     ]
 
 
@@ -243,7 +246,9 @@ def charge_sharing_spectrum():
 
     fig7, sub7 = plt.subplots()
     sub7.set(xlabel='Energy (eV)', ylabel='Counts', title='Comparison W1-W9')           
-    
+
+    model_g = GaussianModel()
+
     for iw,(w,ws) in enumerate(zip(wafers,w_dics)):
         print(w,ws)
         fig2, sub2 = plt.subplots()
@@ -271,6 +276,13 @@ def charge_sharing_spectrum():
             data_noise = np.random.normal(data_chsh, ws['noise']*3.6)
             pool.close
             
+            hist, bin = np.histogram(data_noise, bins=150, range=[0,1500])
+			
+            foutname = 'sim_data/'+w+'_E'+str(e)+'eV_chcl'+ cloud +'um_4.txt'
+            fout = open(foutname,'w')
+            for ix,iy in zip(bin, hist):
+                print(ix,iy, file=fout)
+
             QE_mult[iw,ie] = np.count_nonzero(data_noise > ws['noise']*5*3.6)/np.shape(data)[0]
 
             if e %100 == 0:    
@@ -282,20 +294,31 @@ def charge_sharing_spectrum():
                 nm,bm,hm = sub4.hist(data_noise,200, label=str(e)+'eV - with charge sharing', histtype='step')
                 nm,bm,hm = sub7.hist(data_noise,200, label=str(e)+'eV - '+w, histtype='step')
                
-
-            if w=='W9':
+            if w=='W1':
                 for comp, ic in zip(comparison_files,plot_c):
                     if 'E'+str(e).replace('.0','')+'eV' in comp and w in comp:
+                        minf = 67
+                        maxf = 85
+                        minf1 = 135
+                        maxf1 = 170  
                         data = np.loadtxt(comp)
                         norm = np.max(nm[100:])/np.max(data[:,1])
                         sub5.plot(data[ic:,0],data[ic:,1]*norm, '-', label=str(e)+'eV data')
-                        sub5.hist(data_noise,200, label=str(e)+'eV sim', histtype='step')
+                        nd,bd,hd = sub5.hist(data_noise,200, label=str(e)+'eV sim', histtype='step')
+                        params_g = model_g.make_params(center=900, amplitude=2000, sigma=20)
+                        result_g = model_g.fit(data[minf:maxf,1]*norm, params_g, x=data[minf:maxf,0])
+                        sub5.plot(data[minf:maxf,0], result_g.best_fit, '-', label='fit data')
+                        print('Data fit:', result_g.params.valuesdict())
+
+                        params_g = model_g.make_params(center=900, amplitude=2000, sigma=20)
+                        result_g = model_g.fit(nd[minf1:maxf1], params_g, x=bd[minf1:maxf1])
+                        sub5.plot(bd[minf1:maxf1], result_g.best_fit, '-', label='fit simu')
+                        print('Simu fit:', result_g.params.valuesdict())
 
     for comp, ic in zip(comparison_files,plot_c):
         data = np.loadtxt(comp)
         norm = np.max(nm)/np.max(data[:,1])
         sub7.plot(data[ic:,0],data[ic:,1]*norm, '--', label=str(e)+'eV data')
-
 
         sub2.legend()    
         fig2.show()
@@ -327,7 +350,7 @@ def calculate_charge_collection():
 #    sigma_cloud = 4.68 #um
 #    sigma_cloud = 6 #um
 #    sigma_cloud = 6.5 #um
-    sigma_cloud = 7.5 #um
+    sigma_cloud = 4.88 #um
     pp = 75 # um
     Evgridx = np.arange(0,pp+.1,1)
     Evgridy = np.arange(0,pp+.1,1)    
@@ -337,9 +360,10 @@ def calculate_charge_collection():
     chcloud = integral_gauss2d_v(X,Y,sigma_cloud,1,pp)
 
     fig2, sub2 = plt.subplots() # weighting field    
-    im = sub2.imshow(chcloud, extent=(0,pp,0,pp), vmin=0.25, vmax=1 ,cmap='inferno')
+    im = sub2.imshow(chcloud, extent=(0,pp,0,pp), vmin=0, vmax=1 ,cmap='inferno')
     sub2.plot([0,pp,pp,0,0],[0,0,pp,pp,0],'-', color='black')
     sub2.set(xlabel='x ($\\mu$m)',ylabel='y ($\\mu$m)')
+    sub2.tick_params(direction='in')
     fig2.colorbar(im, label='Collected charge fraction')
     fig2.show()
 
@@ -539,18 +563,17 @@ def plot_SNR():
 			[900,0.9321],
 			])
 
-
-	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,1],yerr=eff_W1[7:,2],marker = '.',mfc='none', color='grey', linestyle = ':',capsize=3, capthick=1, label='QE')
-	sub1[1].errorbar(eff_W9[7:,0],eff_W9[7:,5],yerr=eff_W9[7:,6],marker = 'o',mfc='none', color='black', linestyle = '--',capsize=3, capthick=1, label='Shallow')
-	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,5],yerr=eff_W1[7:,6],marker = 's',mfc='none', color='red', linestyle = '--',capsize=3, capthick=1, label='Standard')
+	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,1]*100,yerr=eff_W1[7:,2]*100,marker = '.',mfc='none', color='grey', linestyle = ':',capsize=3, capthick=1, label='QE')
+	sub1[1].errorbar(eff_W9[7:,0],eff_W9[7:,5]*100,yerr=eff_W9[7:,6]*100,marker = 'o',mfc='none', color='black', linestyle = '--',capsize=3, capthick=1, label='Shallow')
+	sub1[1].errorbar(eff_W1[7:,0],eff_W1[7:,5]*100,yerr=eff_W1[7:,6]*100,marker = 's',mfc='none', color='red', linestyle = '--',capsize=3, capthick=1, label='Standard')
 	sub1[0].tick_params(bottom=True, top=True, left=True, right=True, direction="in")
 	sub1[1].tick_params(bottom=True, top=False, left=True, right=True, direction="in", labelleft=False)
 	
 	ax1 = sub1[1].twinx()
-	sub1[1].set_ylim([0.1,1])
-	ax1.set_ylim([0.1,1])
+	sub1[1].set_ylim([0.1*100,100])
+	ax1.set_ylim([0.1*100,100])
 	ax1.tick_params(direction="in")
-	ax1.set(ylabel='Efficiency')
+	ax1.set(ylabel='Efficiency (%)')
 
 	sub1[0].legend(frameon=False)
 	sub1[1].legend(frameon=False, loc='lower right')
@@ -612,7 +635,7 @@ def plot_noise_vs_gain():
 	
 def plot_noise_red():
 	print('This is the gain reduction of LGADs')
-	w13 = np.array([[2.3618, 0.6988,2.5504,0.2806],
+	w13 = np.array([[2.3618, 0.6988,2.5504,0.2806],plt.rc('axes', unicode_minus=False)
 		[2.6147, 0.7073,2.5497,0.2769]])
 		
 	w9 = np.array([[4.00349,0.73209,4.40278,0.40519],
@@ -887,10 +910,99 @@ def calculate_efficiency():
     sub1.legend()
     fig1.show()
 
+def linear(x,m,q):
+	return x*m+q
+
+def fit_calibration(x,y,p0,sigma):
+	param, cov = curve_fit(linear, x, y, p0=p0,sigma=sigma)
+	errs = np.sqrt(np.diag(cov))
+	return np.concatenate((param,errs))	
+
+def plot_best_charge_cloud():
+    print('Plot the optimization of the charge cloud dimentions')
+    W9_cloud = np.array([3.5,4,4.68,6,5.5,3,])
+    W9_peak_900 = np.array([[880.45, 1.57],[878.31, 1.71],[872.17, 1.24],[864.05, 1.72],[868.88, 2.53],[882.18, 0.65]])
+    W9_data_peak_900 = 875.55
+    W9_peak_850 = np.array([[829.80,1.23],[827.96,0.62],[823.66,2.40],[814.56,1.71],[818.65,0.99],[832.70,0.82]])
+    W9_data_peak_850 = 827.00
+    W9_peak_800 = np.array([[780.27,0.61],[778.69,1.08],[773.64,1.73],[766.30,1.81],[767.29,2.07],[782.03,0.95]])
+    W9_data_peak_800 = 771.26
+
+    plot_off = 0.01
+
+    fig1, sub1 = plt.subplots() 
+
+    c_r = fit_calibration(W9_cloud,W9_peak_900[:,0]-W9_data_peak_900,[0,5],W9_peak_900[:,1])
+    sub1.errorbar(W9_cloud, W9_peak_900[:,0]-W9_data_peak_900, yerr=W9_peak_900[:,1], color='black',
+	marker = 'o',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 900 eV')
+    # sub1.plot([W9_cloud.min(), W9_cloud.max()], [W9_data_peak_900,W9_data_peak_900],label='Data - 900 eV',color='black')
+    sub1.plot(np.sort(W9_cloud), [c_r[0]*e +c_r[1] for e in np.sort(W9_cloud)], '--', color='black')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_900 = (-c_r[1])/c_r[0]
+
+    c_r = fit_calibration(W9_cloud,W9_peak_850[:,0]-W9_data_peak_850,[0,5],W9_peak_850[:,1])
+    sub1.errorbar(W9_cloud-plot_off, W9_peak_850[:,0]-W9_data_peak_850, yerr=W9_peak_850[:,1], color='blue',
+	marker = 's',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 850 eV')
+    # sub1.plot([W9_cloud.min(), W9_cloud.max()], [W9_data_peak_850,W9_data_peak_850],label='Data - 850 eV',color='blue')
+    sub1.plot(np.sort(W9_cloud-plot_off), [c_r[0]*e +c_r[1] for e in np.sort(W9_cloud-plot_off)], '--', color='blue')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_850 = (-c_r[1])/c_r[0]
+
+    c_r = fit_calibration(W9_cloud,W9_peak_800[:,0]-W9_data_peak_800,[0,5],W9_peak_800[:,1])
+    sub1.errorbar(W9_cloud+plot_off, W9_peak_800[:,0]-W9_data_peak_800, yerr=W9_peak_800[:,1], color='green',
+	marker = 'v',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 800 eV')
+    sub1.plot(np.sort(W9_cloud+plot_off), [c_r[0]*e +c_r[1] for e in np.sort(W9_cloud+plot_off)], '--', color='green')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_800 = (-c_r[1])/c_r[0]
+    opt_charge_cloud = np.average([opt_900,opt_850,opt_800])
+    print('Optimal charge cloud:', opt_charge_cloud)
+
+    ylim = sub1.get_ylim()
+    sub1.plot([opt_charge_cloud,opt_charge_cloud], ylim,':')
+    t=sub1.text(opt_charge_cloud+0.3,-14.6, 'Estimated value:\n'+f'{opt_charge_cloud:.2f}'+' $\mathrm{\mu m}$', fontsize=10, color='black', ha="center")
+
+    sub1.plot([W9_cloud.min(), W9_cloud.max()],[0,0],color='red')
+    sub1.tick_params(direction='in')
+    sub1.set(xlabel='Charge cloud dimension ($\mathrm{\mu m}$)', ylabel='Simulated peak position - data (eV)',ylim=ylim)
+    sub1.legend(frameon=False, title='Shallow LGAD', title_fontproperties={'weight':'bold'})
+    fig1.show()
     
+    W1_cloud = np.array([6,5.5,7,8,6.5,9,7.5,8.5,9.5,10])
+    W1_peak_900 = np.array([[859.87,2.80],[863.30,1.36],[852.71,2.37],[845.26,1.64],[858.68,2.10],[837.81,4.33],[848.15,2.00],[841.30,4.25],[829.37,3.85],[825.69,5.03]])
+    W1_data_peak_900 = 850.06
+    W1_peak_850 = np.array([[810.91,2.91],[816.34,3.84],[803.24,3.78],[795.94,1.20],[807.73,4.62],[786.92,3.06],[799.31,4.46],[791.61,3.32],[779.00,3.24],[773.28,1.48]])
+    W1_data_peak_850 = 795.38
+    W1_peak_800 = np.array([[762.82,3.12],[765.19,1.75],[754.35,0.56],[748.78,3.33],[758.49,2.38],[736.31,3.14],[750.91,4.20],[742.46,3.57],[730.63,5.40],[726.28,3.23]])
+    W1_data_peak_800 = 741.75
 
+    fig2, sub2 = plt.subplots() 
 
+    c_r = fit_calibration(W1_cloud,W1_peak_900[:,0]-W1_data_peak_900,[0,5],W1_peak_900[:,1])
+    sub2.errorbar(W1_cloud, W1_peak_900[:,0]-W1_data_peak_900, yerr=W1_peak_900[:,1], color='black',
+	marker = 'o',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 900 eV')
+    # sub1.plot([W1_cloud.min(), W1_cloud.max()], [W1_data_peak_900,W1_data_peak_900],label='Data - 900 eV',color='black')
+    sub2.plot(np.sort(W1_cloud), [c_r[0]*e +c_r[1] for e in np.sort(W1_cloud)], '--', color='black')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_900 = (-c_r[1])/c_r[0]
 
+    c_r = fit_calibration(W1_cloud,W1_peak_850[:,0]-W1_data_peak_850,[0,5],W1_peak_850[:,1])
+    sub2.errorbar(W1_cloud-plot_off, W1_peak_850[:,0]-W1_data_peak_850, yerr=W1_peak_850[:,1], color='blue',
+	marker = 's',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 850 eV')
+    # sub1.plot([W1_cloud.min(), W1_cloud.max()], [W1_data_peak_850,W1_data_peak_850],label='Data - 850 eV',color='blue')
+    sub2.plot(np.sort(W1_cloud-plot_off), [c_r[0]*e +c_r[1] for e in np.sort(W1_cloud-plot_off)], '--', color='blue')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_850 = (-c_r[1])/c_r[0]
 
+    c_r = fit_calibration(W1_cloud,W1_peak_800[:,0]-W1_data_peak_800,[0,5],W1_peak_800[:,1])
+    sub2.errorbar(W1_cloud+plot_off, W1_peak_800[:,0]-W1_data_peak_800, yerr=W1_peak_800[:,1], color='green',
+	marker = 'v',mfc='none', linestyle = 'none', capsize=3, capthick=1, label='Simulation - 800 eV')
+    sub2.plot(np.sort(W1_cloud+plot_off), [c_r[0]*e +c_r[1] for e in np.sort(W1_cloud+plot_off)], '--', color='green')#, label=f'linear fit: y={c_r[0]:.2f}x {c_r[1]:.2f}')
+    opt_800 = (-c_r[1])/c_r[0]
+    opt_charge_cloud = np.average([opt_900,opt_850,opt_800])
+    print('Optimal charge cloud:', opt_charge_cloud)
+
+    ylim = sub2.get_ylim()
+    sub2.plot([opt_charge_cloud,opt_charge_cloud], ylim,':')
+    t=sub2.text(opt_charge_cloud+0.4,-30, 'Estimated value:\n'+f'{opt_charge_cloud:.2f}'+' $\mathrm{\mu m}$', fontsize=10, color='black', ha="center")
+
+    sub2.plot([W1_cloud.min(), W1_cloud.max()],[0,0],color='red')
+    sub2.tick_params(direction='in')
+    sub2.set(xlabel='Charge cloud dimension ($\mathrm{\mu m}$)', ylabel='Simulated peak position - data (eV)',ylim=ylim)
+    sub2.legend(frameon=False, title='Standard LGAD', title_fontproperties={'weight':'bold'})
+    fig2.show()
     
-
