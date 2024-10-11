@@ -28,7 +28,9 @@ W1 = {'e_gain': 1,
       'th_impl': 112,  # nm
       'depth_gl': 670,  # nm
       'depth_gl_err': 12,  # nm
-      'noise': 23 # e-  
+      'noise': 23, # e-
+      'charge_cloud': 7.36,
+      'charge_cloud_err': 0.15  
       }
 
 W9 = {'e_gain': 1,
@@ -37,7 +39,9 @@ W9 = {'e_gain': 1,
       'th_impl': 107,  # nm
       'depth_gl': 299,  # nm 
       'depth_gl_err': 5,  # nm
-      'noise': 22.3 # e-  
+      'noise': 22.3, # e-  
+      'charge_cloud': 4.88,
+      'charge_cloud_err': 0.08  
       }
 
 W13 = {'e_gain': 1,
@@ -346,11 +350,10 @@ def charge_sharing_spectrum():
 
     return QE_mult
        
-def calculate_charge_collection():
+def calculate_charge_collection(sigma_cloud = 4.88):
 #    sigma_cloud = 4.68 #um
 #    sigma_cloud = 6 #um
 #    sigma_cloud = 6.5 #um
-    sigma_cloud = 4.88 #um
     pp = 75 # um
     Evgridx = np.arange(0,pp+.1,1)
     Evgridy = np.arange(0,pp+.1,1)    
@@ -367,7 +370,7 @@ def calculate_charge_collection():
     fig2.colorbar(im, label='Collected charge fraction')
     fig2.show()
 
-    fout = open('data/charge_collection'+f'{sigma_cloud:0.2f}'+'um_pp'+f'{pp:0.0f}'+'um'+'.txt','w')
+    fout = open('data/charge_collection/charge_collection'+f'{sigma_cloud:0.2f}'+'um_pp'+f'{pp:0.0f}'+'um'+'.txt','w')
     for el in chcloud: print(*el, file=fout)
 
 def gauss2d(x,y,x0,y0,sigma,I):
@@ -703,9 +706,10 @@ def plot_noise_red():
     
 def calculate_efficiency_error():
 	iterations = 500
-	energies = np.arange(200,901,50)
+	energies = np.arange(500,901,50)
 
 	efficiency = np.zeros((iterations,2,15))
+
 	for i in range(iterations):
 		print('Iteration:', i)
 		lgads_mult()
@@ -1006,3 +1010,17 @@ def plot_best_charge_cloud():
     sub2.legend(frameon=False, title='Standard LGAD', title_fontproperties={'weight':'bold'})
     fig2.show()
     
+def calculate_many_charge_collection():
+    centre_value = 4.88
+    sigma = 0.08
+
+    start_value = round(centre_value - 6*sigma,1)
+    stop_value = round(centre_value + 6*sigma,1)
+
+    print(start_value,stop_value)
+    steps = np.arange(start_value,stop_value+0.01,0.1)
+    steps = [8.7,8.8,8.9]
+    print(steps)
+    for s in steps:
+        print('step:',s)
+        calculate_charge_collection(s)
