@@ -11,6 +11,7 @@ from scipy import optimize
 from scipy import special
 from datetime import datetime
 import re
+import time
 import multiprocessing
 from itertools import repeat
 from lmfit import Model,Parameters,Minimizer, report_fit
@@ -115,7 +116,7 @@ def lgads_mult():
     W1c = copy.deepcopy(W1)
     W9c = copy.deepcopy(W9)
     W1c['h_gain'] = np.random.normal(W1['h_gain'], 0*W1['h_gain_err'],1)[0]	
-    W9c['h_gain'] = np.random.normal(W9['h_gain'], 0*W9['h_gain_err'],1)[0]	
+    W9c['h_gain'] = np.random.normal(W9['h_gain'], 0*W9['h_gain_err'],1)[0]
     W1c['depth_gl'] = np.random.normal(W1['depth_gl'], 0*W1['depth_gl_err'],1)[0]	
     W9c['depth_gl'] = np.random.normal(W9['depth_gl'], 0*W9['depth_gl_err'],1)[0]	
           
@@ -204,8 +205,8 @@ def lgads_mult():
 
 def charge_sharing_spectrum():
     energies = np.arange(500,901,50)
-    wafers = ['W9']#, 'W1', 'W13','W17']
-    w_dics = [W9]#,W1,W13,W17]
+    wafers = ['W1','W9',]#, 'W1', 'W13','W17']
+    w_dics = [W1, W9]#,W1,W13,W17]
     tot_photons = 1e5 # number of simulated photons  
     QE=np.zeros((len(wafers),len(energies)))  
     QE_mult=np.zeros((len(wafers),len(energies)))  
@@ -215,16 +216,13 @@ def charge_sharing_spectrum():
 
     # chcloud = np.loadtxt('data/charge_collection4.68um_pp75um.txt')
     # chcloud = np.loadtxt('data/charge_collection6.00um_pp75um.txt')
-    chcloud = np.loadtxt('data/charge_collection6.00um_pp75um.txt')
     cloud = '6.00'
 
-    print(np.shape(chcloud))
-
-    im = sub1.imshow(chcloud, extent=(0,pp,0,pp))
-    sub1.plot([0,pp,pp,0,0],[0,0,pp,pp,0],'-', color='black')
-    sub1.set(xlabel='x(um)',ylabel='y(um)', title='Charge collection')
-    fig1.colorbar(im)
-    fig1.show()
+    # im = sub1.imshow(chcloud, extent=(0,pp,0,pp))
+    # sub1.plot([0,pp,pp,0,0],[0,0,pp,pp,0],'-', color='black')
+    # sub1.set(xlabel='x(um)',ylabel='y(um)', title='Charge collection')
+    # fig1.colorbar(im)
+    # fig1.show()
     
     comparison_files= [
                 # 'data/W1_vrpre3400_E900eV.txt',
@@ -254,6 +252,11 @@ def charge_sharing_spectrum():
     model_g = GaussianModel()
 
     for iw,(w,ws) in enumerate(zip(wafers,w_dics)):
+
+        cl_dim = 7
+        cl_dim_r = round(cl_dim ,1)
+        chcloud = np.loadtxt('data/charge_collection/charge_collection'+f'{cl_dim_r:.2f}'+'um_pp75um.txt')
+
         print(w,ws)
         fig2, sub2 = plt.subplots()
         sub2.set(xlabel='Energy (eV)', ylabel='Counts', title=w+' No charge-sharing')           
@@ -282,10 +285,10 @@ def charge_sharing_spectrum():
             
             hist, bin = np.histogram(data_noise, bins=150, range=[0,1500])
 			
-            foutname = 'sim_data/'+w+'_E'+str(e)+'eV_chcl'+ cloud +'um_4.txt'
-            fout = open(foutname,'w')
-            for ix,iy in zip(bin, hist):
-                print(ix,iy, file=fout)
+            # foutname = 'sim_data/'+w+'_E'+str(e)+'eV_chcl'+ cloud +'um_4.txt'
+            # fout = open(foutname,'w')
+            # for ix,iy in zip(bin, hist):
+            #     print(ix,iy, file=fout)
 
             QE_mult[iw,ie] = np.count_nonzero(data_noise > ws['noise']*5*3.6)/np.shape(data)[0]
 
@@ -335,7 +338,6 @@ def charge_sharing_spectrum():
         sub7.legend()    
         fig7.show()
 
-        
     fig6, sub6 = plt.subplots()   
     sub6.set(xlabel='Energy (eV)', ylabel='Efficiency', title='Efficiency')            
     for iw,(w,ws) in enumerate(zip(wafers,w_dics)):
@@ -382,12 +384,10 @@ def integral_gauss2d(x0,y0,sigma,energy,pp):
 
 def get_charge_collected(x,y,e,coll_map,pp):
     #print(x,y,e,pp)
-    
     return e*coll_map[int(x/pp*np.shape(coll_map)[0]),int(y/pp*np.shape(coll_map)[1])]
     
-    
 def get_simulated_data(txt_fname):
-    print('Getting data from:', txt_fname)
+    # print('Getting data from:', txt_fname)
     data = np.loadtxt(txt_fname)
     #print(np.shape(data))
     return data[:,0], data[:,1], data[:,2]
@@ -461,7 +461,16 @@ def lgad_multiplication(x, e, w, noise=0):
         q = e*w['h_gain']-m*w['th_impl']
         return np.random.normal(x*m + q, noise,1)[0]
     if x>= w['depth_gl']: return np.random.normal(e*w['e_gain'], noise,1)[0]
-    
+
+def lgad_multiplication_noiseless(x, e, w):
+    if x < 0: return 0
+    if x >= 0 and x<= w['th_impl']: return e*w['h_gain']
+    if x > w['th_impl'] and x < w['depth_gl']: 
+        m = e*(w['e_gain']-w['h_gain'])/(w['depth_gl']-w['th_impl'])
+        q = e*w['h_gain']-m*w['th_impl']
+        return x*m + q
+    if x>= w['depth_gl']: return e*w['e_gain']
+
 def plot_SNR():
 	print('This is the SNR of LGAD-Eiger')
 	
@@ -705,10 +714,10 @@ def plot_noise_red():
 	fig2.show()
     
 def calculate_efficiency_error():
-	iterations = 500
+	iterations = 5
 	energies = np.arange(500,901,50)
 
-	efficiency = np.zeros((iterations,2,15))
+	efficiency = np.zeros((iterations,2,len(energies)))
 
 	for i in range(iterations):
 		print('Iteration:', i)
@@ -787,7 +796,6 @@ def plot_multiplication_factor():
 	sub1.add_patch(p1)
 	t=sub1.text(200, 6.6, 'shallow\ngain layer', fontsize=10, color='black',ha="left", va="center",) #, fontweight = 'bold')
 
-
 	fig2, sub2 = plt.subplots() 
 	sub2.set(xlabel='depth (nm)')	
 	fn='LGADs_absorption_500eV.txt'
@@ -813,7 +821,6 @@ def plot_multiplication_factor():
 	param1, cov1 = curve_fit(exp, b[:-1],n, p0=[np.max(n),0.001])
 	print(param1)
 	sub2.plot(xplot,exp(xplot, param1[0],param1[1]))
-
 
 	fig2.show()
 
@@ -1024,3 +1031,66 @@ def calculate_many_charge_collection():
     for s in steps:
         print('step:',s)
         calculate_charge_collection(s)
+
+def mult_efficiency():
+    iterations = 500
+
+    energies = np.arange(500,901,50)
+    # energies = np.arange(500,551,100)
+    efficiencies = np.zeros((iterations,len(energies)))
+
+    model_g = GaussianModel()
+
+    wafer = W1
+    for i in range(iterations):
+        print('Iteration:',i)
+
+        # extract parameters from gaussian distributions
+        Wc = copy.deepcopy(wafer)
+        Wc['h_gain'] = np.random.normal(wafer['h_gain'], 1*wafer['h_gain_err'],1)[0]	
+        Wc['depth_gl'] = np.random.normal(wafer['depth_gl'], 1*wafer['depth_gl_err'],1)[0]	
+        Wc['charge_cloud'] = np.random.normal(wafer['charge_cloud'], 1*wafer['charge_cloud_err'],1)[0]	
+            
+        print('Wafer:',Wc)
+        cl_dim_r = round(Wc['charge_cloud'] ,1)
+        print(cl_dim_r, 'um')
+        chcloud = np.loadtxt('data/charge_collection/charge_collection'+f'{cl_dim_r:.2f}'+'um_pp75um.txt').flatten()
+
+        for i_ene,ene in enumerate(energies):
+
+            abs_file = f'LGADs_absorption_{ene:.0f}eV.txt'
+            # print(ene, 'eV')
+
+            # get absorption depth
+            eventID, posZ, edep = get_simulated_data('data/'+abs_file)
+
+            # calculate multiplication
+            th_passivation = np.min(posZ)
+            mult_event = [lgad_multiplication_noiseless(x-th_passivation, e*1000, Wc) for x,e in zip(posZ,edep)]
+
+            tot_events = len(posZ) * len(chcloud)
+
+            pool = multiprocessing.Pool()
+            g_e = np.array(list(pool.starmap(count_good_events, 
+                                        zip(mult_event, repeat(chcloud), repeat(Wc)))))
+            pool.close
+
+            # print('tot:', tot_events, 'good', np.sum(g_e), np.sum(g_e)/tot_events*100,'%')
+            efficiencies[i,i_ene] = np.sum(g_e)/tot_events
+
+    fig1, sub1 = plt.subplots() 
+
+    for i_ene,ene in enumerate(energies):
+        n9,b9,h9 = sub1.hist(efficiencies[:,i_ene].flatten(), 200, label=str(ene)+'eV', histtype='step', )
+        params_g = model_g.make_params(center=b9[np.argmax(n9)], amplitude=np.amax(n9), sigma=np.std(efficiencies[:,i_ene])) 
+        result_g = model_g.fit(n9, params_g, x=(b9[1:] + b9[:-1])/2)
+        sub1.plot((b9[1:] + b9[:-1])/2, result_g.best_fit, '-')
+        print(result_g.params.valuesdict())
+        print('Average:',np.average(efficiencies[:,i_ene]))
+        print('std.dev',np.std(efficiencies[:,i_ene]))
+
+    sub1.legend()
+    fig1.show()
+
+def count_good_events(ev, chcloud, W):
+    return np.count_nonzero(np.random.normal(ev*chcloud, W['noise']*3.6) > W['noise']*5*3.6)
